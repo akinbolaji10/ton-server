@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-import psycopg2_binary  # Corrected import
+import psycopg2  # ✅ Correct import name
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 # Database connection function
 def get_db_connection():
-    return psycopg2_binary.connect(  # Corrected usage
+    return psycopg2.connect(
         dbname=os.getenv("DB_NAME"),
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),
@@ -50,7 +50,7 @@ def subscribe_user():
                 WHERE telegram_id = %s
             """, (expiry_date, telegram_id))
         else:
-            # Insert new user with default values for all required columns
+            # Insert new user with default values
             cur.execute("""
                 INSERT INTO users (
                     telegram_id, username, subscription_active, subscription_expiry,
