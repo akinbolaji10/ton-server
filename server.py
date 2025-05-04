@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-import psycopg2
+import psycopg2_binary  # Corrected import
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 # Database connection function
 def get_db_connection():
-    return psycopg2.connect(
+    return psycopg2_binary.connect(  # Corrected usage
         dbname=os.getenv("DB_NAME"),
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),
@@ -71,6 +71,5 @@ def subscribe_user():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ✅ Required fix for Render deployment (step 1 fix)
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(debug=True)
