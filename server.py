@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-import psycopg2_binary as psycopg2  # Correct import for Render
+import psycopg2
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
@@ -31,45 +31,20 @@ def subscribe_user():
     if not telegram_id:
         return jsonify({"error": "Missing telegram_id"}), 400
 
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
+    conn = get_db_connection()
+    cur = conn.cursor()
+    now = datetime.utcnow()
+    expiry = now + timedelta(days=30)
 
-        # Check if user already exists
-        cur.execute("SELECT * FROM users WHERE telegram_id = %s", (telegram_id,))
-        user = cur.fetchone()
+    cur.execute(
+        "INSERT INTO subscriptions (telegram_id, start_date, expiry_date) VALUES (%s, %s, %s) ON CONFLICT (telegram_id) DO UPDATE SET start_date = %s, expiry_date = %s",
+        (telegram_id, now, expiry, now, expiry)
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
 
-        expiry_date = (datetime.utcnow() + timedelta(days=30)).date()
-
-        if user:
-            # Update subscription for existing user
-            cur.execute("""
-                UPDATE users
-                SET subscription_active = TRUE,
-                    subscription_expiry = %s
-                WHERE telegram_id = %s
-            """, (expiry_date, telegram_id))
-        else:
-            # Insert new user with default values for all required columns
-            cur.execute("""
-                INSERT INTO users (
-                    telegram_id, username, subscription_active, subscription_expiry,
-                    interactions_today, comments_today, likes_today, retweets_today
-                )
-                VALUES (%s, %s, TRUE, %s, 0, 0, 0, 0)
-            """, (telegram_id, 'new_user', expiry_date))
-
-        conn.commit()
-        cur.close()
-        conn.close()
-
-        return jsonify({
-            "message": f"✅ Subscription activated for {telegram_id} until {expiry_date}",
-            "status": "ok"
-        })
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify({"message": "Subscription activated successfully!"}), 200
 
 if __name__ == "__main__":
     app.run(debug=True)
