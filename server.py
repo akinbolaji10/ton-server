@@ -1,50 +1,55 @@
 from flask import Flask, request, jsonify
 import psycopg2
 import os
-from datetime import datetime, timedelta
 from dotenv import load_dotenv
+import traceback
 
-# Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 
-# Database connection function
+# Database connection setup
 def get_db_connection():
     return psycopg2.connect(
-        dbname=os.getenv("DB_NAME"),
+        host=os.getenv("DB_HOST"),
+        database=os.getenv("DB_NAME"),
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),
-        host=os.getenv("DB_HOST"),
         port=os.getenv("DB_PORT")
     )
 
-@app.route("/")
+@app.route('/')
 def home():
-    return "TON Payment Server is running!"
+    return 'TON Payment Server is running!'
 
-@app.route("/subscribe", methods=["POST"])
-def subscribe_user():
-    data = request.get_json()
-    telegram_id = data.get("telegram_id")
+@app.route('/subscribe', methods=['POST'])
+def subscribe():
+    try:
+        data = request.get_json()
+        telegram_id = data.get('telegram_id')
 
-    if not telegram_id:
-        return jsonify({"error": "Missing telegram_id"}), 400
+        print("Received telegram_id:", telegram_id)
 
-    conn = get_db_connection()
-    cur = conn.cursor()
-    now = datetime.utcnow()
-    expiry = now + timedelta(days=30)
+        conn = get_db_connection()
+        cur = conn.cursor()
 
-    cur.execute(
-        "INSERT INTO subscriptions (telegram_id, start_date, expiry_date) VALUES (%s, %s, %s) ON CONFLICT (telegram_id) DO UPDATE SET start_date = %s, expiry_date = %s",
-        (telegram_id, now, expiry, now, expiry)
-    )
-    conn.commit()
-    cur.close()
-    conn.close()
+        cur.execute("""
+            INSERT INTO subscriptions (telegram_id, status, subscribed_at)
+            VALUES (%s, %s, CURRENT_TIMESTAMP)
+            ON CONFLICT (telegram_id)
+            DO UPDATE SET status = EXCLUDED.status, subscribed_at = CURRENT_TIMESTAMP
+        """, (telegram_id, 'active'))
 
-    return jsonify({"message": "Subscription activated successfully!"}), 200
+        conn.commit()
+        cur.close()
+        conn.close()
 
-if __name__ == "__main__":
+        return jsonify({"message": f"Subscription successful for ID {telegram_id}"}), 200
+
+    except Exception as e:
+        print("ERROR:", e)
+        traceback.print_exc()
+        return jsonify({"error": "Internal Server Error"}), 500
+
+if __name__ == '__main__':
     app.run(debug=True)
