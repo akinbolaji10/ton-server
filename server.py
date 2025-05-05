@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-import psycopg2  # ✅ Correct import name
+import psycopg2_binary as psycopg2  # Correct import for Render
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
@@ -50,7 +50,7 @@ def subscribe_user():
                 WHERE telegram_id = %s
             """, (expiry_date, telegram_id))
         else:
-            # Insert new user with default values
+            # Insert new user with default values for all required columns
             cur.execute("""
                 INSERT INTO users (
                     telegram_id, username, subscription_active, subscription_expiry,
